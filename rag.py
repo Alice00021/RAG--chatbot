@@ -105,10 +105,14 @@ class RAG():
         return documents
 
     def _initialize_vector_store(self) -> Chroma:
-        pass
-
-    async def process_query(self):
+        logger.info("Загрузка существующего векторного хранилища")
         documents = self._load_knowledge_base()
-        return "\n\n".join([f"{doc.metadata['common_name']} ({doc.metadata['scientific_name']}):\n{doc.page_content}" for doc in documents])
+        chroma_db = Chroma.from_documents(documents, self.embeddings, persist_directory="chroma_db")
+        chroma_db.persist()
+        logger.info("Векторное хранилище создано и сохранено.")
+        return chroma_db
+
+    async def process_query(self, query:str) -> str:
+        pass
 
 
