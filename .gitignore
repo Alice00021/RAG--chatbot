@@ -9,4 +9,4 @@ bot_venv/
 # Лог файлы
 bot.log
 
-
+**/__pycache__/
