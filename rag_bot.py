@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramAPIError
 import openai
 from openai import AsyncOpenAI, OpenAI
+from rag import RAG
 
 console_handler = logging.StreamHandler(sys.stdout)
 file_handler = logging.FileHandler('bot.log')
@@ -25,25 +26,25 @@ if not API_TOKEN or  not OPENAI_TOKEN:
     logger.error("API_TOKEN или OPENAI_TOKEN не найден в переменных окружения. Проверьте файл .env")
     raise ValueError("API_TOKEN или OPENAI_TOKEN не найден в переменных окружения. Проверьте файл .env")
 
-client = AsyncOpenAI( base_url="https://openrouter.ai/api/v1", api_key = OPENAI_TOKEN)
-""" openai.api_key = OPENAI_TOKEN """
 dp = Dispatcher()
 
+rag = RAG(openai_token=OPENAI_TOKEN, knowledge_base="knowledge_base")
+
 @dp.message()
-async def chatgpt_message(message: types.Message):
+async def rag_message(message: types.Message):
     try:
-        completion = await client.chat.completions.create(
-            
+        query_with_context = await rag.get_query_with_context(message.text)
+        completion = await rag.client.chat.completions.create(
         model="deepseek/deepseek-r1:free",
-        messages=[{
-      "role": "user",
-      "content": f"{message}" 
-        }]
-)       
+        messages=[
+                {"role": "system", "content": "Ты полезный ассистент, который отвечает на вопросы, используя предоставленный контекст."},
+                {"role": "user", "content": query_with_context}
+            ])
+        if not completion.choices:
+            raise ValueError("Модель не вернула ответ")       
         response = completion.choices[0].message.content
-        print(response)
         await message.answer(response)
-        logger.info(f"Ответил пользователю {message.from_user.id}: {message.text}")
+        logger.info(f"Ответил пользователю {message.from_user.id}: {response}")
     except TelegramAPIError as e:
             logger.error(f"Ошибка Telegram API: {e}")
             await message.answer("Произошла ошибка при отправке сообщения.")
