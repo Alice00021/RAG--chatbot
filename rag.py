@@ -12,6 +12,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from openai import AsyncOpenAI
 import torch
 from chromadb.config import Settings
+import chromadb
 
 
 logger = logging.getLogger(__name__)
@@ -130,11 +131,17 @@ class RAG():
         if os.path.exists(db_file) and not self.force_reload:
             logger.info("Загрузка существующего векторного хранилища...")
             try:
+                """ client = chromadb.Client(client_settings)
+                return Chroma(
+                    client=client,
+                    embedding_function=self.embeddings,
+                ) """
                 return Chroma(
                     persist_directory=persist_dir,
                     embedding_function=self.embeddings,
                     client_settings=client_settings
                 )
+                
             except Exception as e:
                 logger.error(f"Ошибка загрузки ChromaDB: {e}, пересоздаем хранилище")
                 return self._create_new_vector_store(persist_dir, client_settings)
