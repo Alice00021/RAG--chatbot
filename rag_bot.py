@@ -9,8 +9,9 @@ import openai
 from openai import AsyncOpenAI, OpenAI
 from rag import RAG
 
+os.environ['HF_HOME'] = '/app/.cache'
 console_handler = logging.StreamHandler(sys.stdout)
-file_handler = logging.FileHandler('bot.log')
+file_handler = logging.FileHandler('/tmp/bot.log')
 logging.basicConfig(
     level = logging.INFO,
     handlers=[console_handler, file_handler],

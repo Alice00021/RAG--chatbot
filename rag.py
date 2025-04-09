@@ -5,12 +5,13 @@ import json
 from glob import glob
 from typing import List
 from langchain_openai import ChatOpenAI
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain.text_splitter import CharacterTextSplitter
 from openai import AsyncOpenAI
 import torch
+from chromadb.config import Settings
 
 
 logger = logging.getLogger(__name__)
@@ -115,15 +116,40 @@ class RAG():
 
     def _initialize_vector_store(self) -> Chroma:
         persist_dir = "/app/chroma_db"
-        if os.path.exists(persist_dir)  and not self.force_reload:
+        os.makedirs(persist_dir, exist_ok=True)
+        
+        client_settings = Settings(
+            chroma_db_impl="duckdb+parquet",
+            persist_directory=persist_dir,
+            anonymized_telemetry=False,
+            allow_reset=True
+        )
+
+        # Проверяем наличие конкретного файла БД
+        db_file = os.path.join(persist_dir, "chroma.sqlite3")
+        if os.path.exists(db_file) and not self.force_reload:
             logger.info("Загрузка существующего векторного хранилища...")
-            return Chroma(persist_directory=persist_dir, embedding_function=self.embeddings)
+            try:
+                return Chroma(
+                    persist_directory=persist_dir,
+                    embedding_function=self.embeddings,
+                    client_settings=client_settings
+                )
+            except Exception as e:
+                logger.error(f"Ошибка загрузки ChromaDB: {e}, пересоздаем хранилище")
+                return self._create_new_vector_store(persist_dir, client_settings)
         else:
-            logger.info("Создание векторного хранилища")
-            documents = self._load_knowledge_base()
-        chroma_db = Chroma.from_documents(documents = documents, embedding = self.embeddings, persist_directory=persist_dir)
-        logger.info("Векторное хранилище создано и сохранено.")
-        return chroma_db
+            return self._create_new_vector_store(persist_dir, client_settings)
+
+    def _create_new_vector_store(self, persist_dir, client_settings):
+        logger.info("Создание нового векторного хранилища")
+        documents = self._load_knowledge_base()
+        return Chroma.from_documents(
+            documents=documents,
+            embedding=self.embeddings,
+            persist_directory=persist_dir,
+            client_settings=client_settings
+        )
 
     async def get_query_with_context(self, query:str) -> str:
         logger.info(f"Поиск релевантного контекста для запроса: {query}")
