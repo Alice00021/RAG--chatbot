@@ -14,7 +14,7 @@
 
 ```bash
 git clone https://github.com/Alice00021/RAG--chatbot.git
-cd rag-bot
+cd RAG--chatbot
 
 2. Настройка окружения
 
@@ -26,6 +26,6 @@ OPENAI_API_KEY=ваш_ключ_deepseek_r1
 3. Запуск через Docker
 
 docker build -t rag-bot .
-docker run -d --name my-rag-bot -v ./chroma_db:/app/chroma_db --env-file .env rag-bot
+docker run -d --name my-rag-bot -v ./chroma_db:/app/chroma_db  -v ./knowledge_base:/app/knowledge_base   --env-file .env   rag-bot
 
 
