@@ -26,6 +26,7 @@ OPENAI_API_KEY=ваш_ключ_deepseek_r1
 3. Запуск через Docker
 
 docker build -t rag-bot .
-docker run -d --name my-rag-bot -v ./chroma_db:/app/chroma_db  -v ./knowledge_base:/app/knowledge_base   --env-file .env   rag-bot
+docker run -d --name my-rag-bot --env-file .env rag-bot
+
 
 
