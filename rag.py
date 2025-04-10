@@ -118,44 +118,29 @@ class RAG():
     def _initialize_vector_store(self) -> Chroma:
         persist_dir = "/app/chroma_db"
         os.makedirs(persist_dir, exist_ok=True)
-        
-        client_settings = Settings(
-            chroma_db_impl="duckdb+parquet",
-            persist_directory=persist_dir,
-            anonymized_telemetry=False,
-            allow_reset=True
-        )
 
-        # Проверяем наличие конкретного файла БД
+        # New ChromaDB client initialization
         db_file = os.path.join(persist_dir, "chroma.sqlite3")
         if os.path.exists(db_file) and not self.force_reload:
             logger.info("Загрузка существующего векторного хранилища...")
             try:
-                """ client = chromadb.Client(client_settings)
-                return Chroma(
-                    client=client,
-                    embedding_function=self.embeddings,
-                ) """
                 return Chroma(
                     persist_directory=persist_dir,
                     embedding_function=self.embeddings,
-                    client_settings=client_settings
                 )
-                
             except Exception as e:
                 logger.error(f"Ошибка загрузки ChromaDB: {e}, пересоздаем хранилище")
-                return self._create_new_vector_store(persist_dir, client_settings)
+                return self._create_new_vector_store(persist_dir)
         else:
-            return self._create_new_vector_store(persist_dir, client_settings)
+            return self._create_new_vector_store(persist_dir)
 
-    def _create_new_vector_store(self, persist_dir, client_settings):
+    def _create_new_vector_store(self, persist_dir):
         logger.info("Создание нового векторного хранилища")
         documents = self._load_knowledge_base()
         return Chroma.from_documents(
             documents=documents,
             embedding=self.embeddings,
-            persist_directory=persist_dir,
-            client_settings=client_settings
+            persist_directory=persist_dir
         )
 
     async def get_query_with_context(self, query:str) -> str:
