@@ -12,7 +12,4 @@ COPY . .
 ENV HF_HOME=/app/.cache \
     TOKENIZERS_PARALLELISM=false
 
-VOLUME /app/chroma_db
-VOLUME /app/knowledge_base
-
 CMD ["python", "rag_bot.py"]
