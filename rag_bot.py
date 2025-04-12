@@ -42,9 +42,14 @@ async def rag_message(message: types.Message):
                 {"role": "system", "content":  SYSTEM_PROMPT},
                 {"role": "user", "content": query_with_context}
             ])
-        if not completion.choices:
-            raise ValueError("Модель не вернула ответ")       
-        response = completion.choices[0].message.content
+        try:
+            response = completion.choices[0].message.content
+            if not response:
+                raise ValueError("Модель вернула пустой ответ")
+        except (IndexError, AttributeError) as e:
+            logger.error(f"Ошибка обработки ответа модели: {e}")
+            raise ValueError("Модель не вернула корректный ответ")
+        
         await message.answer(response)
         logger.info(f"Ответил пользователю {message.from_user.id}: {response}")
     except TelegramAPIError as e:
