@@ -8,6 +8,7 @@ from aiogram.exceptions import TelegramAPIError
 import openai
 from openai import AsyncOpenAI, OpenAI
 from rag import RAG
+from prompts import SYSTEM_PROMPT
 
 os.environ['HF_HOME'] = '/app/.cache'
 console_handler = logging.StreamHandler(sys.stdout)
@@ -34,20 +35,11 @@ rag = RAG(openai_token=OPENAI_TOKEN, knowledge_base="knowledge_base")
 @dp.message()
 async def rag_message(message: types.Message):
     try:
-        system_prompt = """
-        Ты полезный ассистент, который отвечает на вопросы, используя предоставленный контекст и только текстом без какого-либо форматирования.
-        Запрещено использовать:
-        - Markdown (**, `, ```, >, -, и т. д.)
-        - HTML-теги
-        - Прочее форматирование
-        Отвечайте только чистыми символами без разметки.
-        """
-
         query_with_context = await rag.get_query_with_context(message.text)
         completion = await rag.client.chat.completions.create(
         model="deepseek/deepseek-r1:free",
         messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content":  SYSTEM_PROMPT},
                 {"role": "user", "content": query_with_context}
             ])
         if not completion.choices:
