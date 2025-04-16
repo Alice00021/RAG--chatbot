@@ -10,6 +10,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 ENV HF_HOME=/app/.cache \
-    TOKENIZERS_PARALLELISM=false
+    TOKENIZERS_PARALLELISM=false \
+    CHROMA_DB_PATH=/app/chroma_db
 
 CMD ["python", "rag_bot.py"]
