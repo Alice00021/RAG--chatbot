@@ -8,5 +8,11 @@
 bot_venv/
 # Лог файлы
 bot.log
+logs/
 
 **/__pycache__/
+
+.cache/
+
+chroma_db/
+
