@@ -13,7 +13,8 @@ from openai import AsyncOpenAI
 import torch
 from chromadb.config import Settings
 import chromadb
-
+import tiktoken
+from prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,8 @@ class RAG():
         return documents
 
     def _initialize_vector_store(self) -> Chroma:
-        persist_dir = "/app/chroma_db"
+
+        persist_dir = os.getenv('CHROMA_DB_PATH', os.path.join(os.path.dirname(__file__), 'chroma_db'))
         os.makedirs(persist_dir, exist_ok=True)
 
         # New ChromaDB client initialization
@@ -142,6 +144,33 @@ class RAG():
             embedding=self.embeddings,
             persist_directory=persist_dir
         )
+    def _get_token_count(self, text:str):
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+            return len(encoding.encode(text))
+        except Exception as e:
+           logger.error(f"Ошибка при подсчете токенов с tiktoken: {e}")
+           return len(text) // 4
+        
+    def truncate_prompt(self, prompt: str, system_prompt:str, max_tokens: int = 3500) -> str:
+        estimated_tokens = self._get_token_count(prompt)
+        system_tokens = self._get_token_count(system_prompt)
+        total_tokens = estimated_tokens + system_tokens
+
+        if total_tokens <= max_tokens:
+            logger.info(f"Prompt содержит {estimated_tokens}, что меньше {max_tokens}")
+            return prompt
+        
+        logger.warning(f"Prompt содержит {estimated_tokens}, что превышает {max_tokens}. Необходимо уменьшить")
+        char_limit = (max_tokens - system_tokens) * 4 # пеерводим кол-во токенов в символы
+        truncated = prompt[-char_limit:]#обрезаем с конца, чтобы остался запрос пользователя
+        first_space = truncated.find(' ')
+        # если текст начинается не с пробела, чтобы текст начинался с полного слова
+        if first_space > 0:
+            truncated = truncated[first_space+1:]
+        logger.info(f"обрезанный текст: {truncated}")
+        return truncated
+        
 
     async def get_query_with_context(self, query:str) -> str:
         logger.info(f"Поиск релевантного контекста для запроса: {query}")
@@ -156,4 +185,5 @@ class RAG():
 
         query_with_context = f"Контекст: {context}\n\nВопрос: {query}"
         logger.info(f"Расширенный запрос: {query_with_context}")
-        return query_with_context
+        logger.info(f"Используем функцию уменьшения промпта, если необходимо")
+        return self.truncate_prompt(query_with_context, SYSTEM_PROMPT)

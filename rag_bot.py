@@ -5,14 +5,16 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramAPIError
-import openai
-from openai import AsyncOpenAI, OpenAI
 from rag import RAG
 from prompts import SYSTEM_PROMPT
 
-os.environ['HF_HOME'] = '/app/.cache'
+os.environ['HF_HOME'] = os.getenv('HF_HOME', os.path.join(os.path.dirname(__file__), '.cache'))
+os.environ['TOKENIZERS_PARALLELISM'] = os.getenv('TOKENIZERS_PARALLELISM', 'false')
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
 console_handler = logging.StreamHandler(sys.stdout)
-file_handler = logging.FileHandler('/tmp/bot.log')
+file_handler = logging.FileHandler(os.path.join(log_dir, 'bot.log'))
 logging.basicConfig(
     level = logging.INFO,
     handlers=[console_handler, file_handler],
@@ -42,6 +44,11 @@ async def rag_message(message: types.Message):
                 {"role": "system", "content":  SYSTEM_PROMPT},
                 {"role": "user", "content": query_with_context}
             ])
+        logger.info(f"Ответ от API: {completion}")
+        if completion.error:
+            #logger.error(f"Ошибка от API: {completion.error}")
+            await message.answer(f"Ошибка от API: {completion.error['message']}")
+            return
         try:
             response = completion.choices[0].message.content
             if not response:
