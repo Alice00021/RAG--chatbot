@@ -45,10 +45,6 @@ async def rag_message(message: types.Message):
                 {"role": "user", "content": query_with_context}
             ])
         logger.info(f"Ответ от API: {completion}")
-        """ if completion.error:
-            #logger.error(f"Ошибка от API: {completion.error}")
-            await message.answer(f"Ошибка от API: {completion.error}")
-            return """
         try:
             response = completion.choices[0].message.content
             if not response:
