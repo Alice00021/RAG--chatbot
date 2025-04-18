@@ -32,18 +32,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RAG():
-    def __init__(self, openai_token:str, knowledge_base:str, force_reload: bool = False):
+    def __init__(self, knowledge_base:str, force_reload: bool = False):
         self.knowledge_base_path = knowledge_base
-        self.openai_token = openai_token
         self.force_reload = force_reload
-
-        self.client = AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=self.openai_token)
-
-        self.llm = ChatOpenAI(
-            openai_api_key=self.openai_token,
-            openai_api_base="https://openrouter.ai/api/v1",
-            model_name="deepseek/deepseek-r1:free",
-        )
+        
         self.embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base",
                                                 model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"})
         
