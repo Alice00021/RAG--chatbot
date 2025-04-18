@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import logging
 from rag import RAG
+import uvicorn
 
 app = FastAPI(title= "RAG")
 
@@ -29,6 +30,9 @@ async def process_query_with_context(request:Query):
         return {"query_with_context":query_with_context}
     except Exception as e:
         logger.warning(f"Ошибка: {e}")
+
+if __name__=='__main__':
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
 
 
 

@@ -18,6 +18,17 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from prompts import SYSTEM_PROMPT
 
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
+console_handler = logging.StreamHandler(sys.stdout)
+file_handler = logging.FileHandler(os.path.join(log_dir, 'rag.log'))
+logging.basicConfig(
+    level = logging.INFO,
+    handlers=[console_handler, file_handler],
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 class RAG():
@@ -95,14 +106,12 @@ class RAG():
                     continue
 
                 content = self._extract_text_from_json(creature)
-                #print(f"Животное{content}")
                 metadata = {
                     "scientific_name": creature.get("scientific_name", ""),
                     "common_name":creature.get("common_name", ""),
                     "habitat_location": creature.get("habitat", {}).get("location", ""),
                     "source": json_file
                 }
-                #print(f"Метаданные: {metadata}")
                 
                 if len(content) > 500: 
                     chunks = text_splitter.split_text(content)
@@ -123,7 +132,6 @@ class RAG():
         persist_dir = os.getenv('CHROMA_DB_PATH', os.path.join(os.path.dirname(__file__), 'chroma_db'))
         os.makedirs(persist_dir, exist_ok=True)
 
-        # New ChromaDB client initialization
         db_file = os.path.join(persist_dir, "chroma.sqlite3")
         if os.path.exists(db_file) and not self.force_reload:
             logger.info("Загрузка существующего векторного хранилища...")
@@ -165,7 +173,7 @@ class RAG():
         
         logger.warning(f"Prompt содержит {estimated_tokens}, что превышает {max_tokens}. Необходимо уменьшить")
         char_limit = (max_tokens - system_tokens) * 4 # пеерводим кол-во токенов в символы
-        truncated = prompt[-char_limit:]#обрезаем с конца, чтобы остался запрос пользователя
+        truncated = prompt[-char_limit:]#обрезаем с начала, чтобы остался запрос пользователя
         first_space = truncated.find(' ')
         # если текст начинается не с пробела, чтобы текст начинался с полного слова
         if first_space > 0:
