@@ -53,9 +53,15 @@ async def generate_response(request:LLMAnswer):
             ])
         logger.info(f"Ответ от API: {completion}")
         try:
+
             response = completion.choices[0].message.content
             if not response:
-                raise ValueError("Модель вернула пустой ответ")
+                reasoning = getattr(completion.choices[0].message, 'reasoning', None)
+                if reasoning:
+                    response = reasoning
+                    logger.info("Использовано поле reasoning вместо content")
+                else:
+                    raise ValueError("Модель вернула пустой ответ в content и reasoning")
         except (IndexError, AttributeError) as e:
             logger.error(f"Ошибка обработки ответа модели: {e}")
             raise ValueError("Модель не вернула корректный ответ")
