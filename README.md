@@ -18,15 +18,39 @@ cd RAG--chatbot
 
 2. Настройка окружения
 
-Создайте файл .env в корне проекта с содержимым:
+2.1 Создайте файл .env в папке RAG:
+
+HF_HOME=./.cache 
+TOKENIZERS_PARALLELISM=false 
+CHROMA_DB_PATH=./chroma_db
+
+2.2 Создайте файл .env в папке LLM
+
+OPENAI_API_KEY=ваш_ключ_deepseek_r1 или другой модели
+
+2.3 Создайте файл .env в папке APIgateway
+
+RAG_SERVICE_URL=http://localhost:8000
+LLM_SERVICE_URL=http://localhost:8001
+
+2.4 Создайте файл .env в папке telegram_bot
 
 API_KEY=ваш_ключ_от_telegram_bot
-OPENAI_API_KEY=ваш_ключ_deepseek_r1
+API_GATEWAY_URL=http://localhost:8002
 
-3. Запуск через Docker
+3. Запуск через docker-compose
 
-docker build -t rag-bot .
-docker run -d --name my-rag-bot --env-file .env rag-bot
+docker-compose up --build
+docker-compose start
+
+Решение проблем с SELinux (только для Linux)
+
+Если Вы запускате на linux, то могут возникнуть проблемы с knowladge_base из-за SELinux.
+Необходимо изменить контекст безопасности для директории ./RAG/knowledge_base.
+
+sudo chcon -Rt svirt_sandbox_file_t ./RAG/knowledge_base
+
+
 
 
 
