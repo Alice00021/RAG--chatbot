@@ -2,16 +2,26 @@ from dotenv import load_dotenv
 import os
 import sys
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status
 import uvicorn
 from pydantic import BaseModel
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, Timeout
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title = "LLM Service")
 
-class LLMAnswer(BaseModel):
+class LLMRequest(BaseModel):
     query_with_context: str
     system_prompt: str
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -39,7 +49,7 @@ if  not OPENAI_TOKEN:
     raise ValueError("OPENAI_TOKEN не найден в переменных окружения. Проверьте файл .env")
 
 @app.post('/generate_answer')
-async def generate_response(request:LLMAnswer):
+async def generate_response(request:LLMRequest):
     if not request.query_with_context.strip():
         logger.warning(f"Пользователь отправил пустой запрос")
         raise HTTPException(status_code = 400,detail= "Некорректный запрос. Пользователь отправил пустой запрос")
@@ -51,8 +61,8 @@ async def generate_response(request:LLMAnswer):
                 {"role": "user", "content": request.query_with_context}
             ])
         logger.info(f"Ответ от API: {completion}")
-        try:
 
+        try:
             response = completion.choices[0].message.content
             if not response:
                 reasoning = getattr(completion.choices[0].message, 'reasoning', None)
@@ -64,6 +74,12 @@ async def generate_response(request:LLMAnswer):
         except (IndexError, AttributeError) as e:
             logger.error(f"Ошибка обработки ответа модели: {e}")
             raise ValueError("Модель не вернула корректный ответ")
+    except Exception as e:
+        logger.error(f"Ошибка LLM: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Timeout as e:
+        logger.error(f"Ошибка Timeout: {e}")
+        raise HTTPException(status_code=504, detail="Время ожидания запроса истекло")
     except Exception as e:
         logger.error(f"Ошибка LLM: {e}")
         raise HTTPException(status_code=500, detail=str(e))

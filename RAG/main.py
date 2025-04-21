@@ -1,4 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import logging
 from rag import RAG
@@ -8,6 +11,13 @@ app = FastAPI(title= "RAG")
 
 class Query(BaseModel):
     query : str
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +31,12 @@ async def process_query_with_context(request:Query):
     try:
         query_with_context = await rag.get_query_with_context(request.query)
         return {"query_with_context":query_with_context}
+    except ValueError as e:
+        logger.error(f"Ошибка значения: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except TimeoutError as e:
+        logger.error(f"Ошибка таймаута: {e}")
+        raise HTTPException(status_code=504, detail="Время ожидания запроса истекло")
     except Exception as e:
         logger.warning(f"Ошибка: {e}")
         raise HTTPException(status_code = 500, detail=str(e))
