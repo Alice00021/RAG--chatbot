@@ -7,10 +7,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramAPIError
 import httpx
 
-""" os.environ['HF_HOME'] = os.getenv('HF_HOME', os.path.join(os.path.dirname(__file__), '.cache'))
-os.environ['TOKENIZERS_PARALLELISM'] = os.getenv('TOKENIZERS_PARALLELISM', 'false')
- """
-
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)
 

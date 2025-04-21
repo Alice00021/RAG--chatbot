@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import os
 import sys
-import asyncio
 import logging
 from fastapi import FastAPI, HTTPException
 import uvicorn

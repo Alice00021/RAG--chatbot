@@ -4,19 +4,17 @@ import json
 from glob import glob
 from typing import List
 from pathlib import Path
-from langchain_openai import ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain.text_splitter import CharacterTextSplitter
-from openai import AsyncOpenAI
 import torch
-from chromadb.config import Settings
 import tiktoken
 import sys
-
-sys.path.append(str(Path(__file__).parent.parent))
 from prompts import SYSTEM_PROMPT
+
+os.environ['HF_HOME'] = os.getenv('HF_HOME', os.path.join(os.path.dirname(__file__), '.cache'))
+os.environ['TOKENIZERS_PARALLELISM'] = os.getenv('TOKENIZERS_PARALLELISM', 'false')
 
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)

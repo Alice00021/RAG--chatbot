@@ -1,0 +1,89 @@
+services:
+  rag:
+    build:
+      context: ./RAG
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HF_HOME=/app/.cache
+      - TOKENIZERS_PARALLELISM=false
+      - CHROMA_DB_PATH=/app/chroma_db
+    volumes:
+      - rag-data:/app/chroma_db
+      - ./RAG/knowledge_base:/app/knowledge_base:ro
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+
+  llm:
+    build:
+      context: ./LLM
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  api-gateway:
+    build:
+      context: ./APIgateway
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - RAG_SERVICE_URL=http://rag:8000
+      - LLM_SERVICE_URL=http://llm:8001
+    depends_on:
+      rag:
+        condition: service_healthy
+      llm:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  telegram:
+    build:
+      context: ./telegram_bot
+      dockerfile: Dockerfile
+    environment:
+      - API_KEY=${API_KEY}
+      - API_GATEWAY_URL=http://api-gateway:8002
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "ps", "aux"] 
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  rag-data:
+
+networks:
+  microservices-network:
+    driver: bridge

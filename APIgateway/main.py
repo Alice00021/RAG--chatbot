@@ -6,9 +6,6 @@ import uvicorn
 import httpx
 from pydantic import BaseModel
 from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent))
-
 from prompts import SYSTEM_PROMPT
 
 app = FastAPI(title = 'API Gateway')
