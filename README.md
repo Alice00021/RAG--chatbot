@@ -19,23 +19,23 @@ cd RAG--chatbot
 
 ### 2. Настройка окружения
 
-## 2.1 Создайте файл .env в папке RAG:
+# 2.1 Создайте файл .env в папке RAG:
 
 ```bash
 HF_HOME=./.cache 
 TOKENIZERS_PARALLELISM=false 
 CHROMA_DB_PATH=./chroma_db
 ```
-## 2.2 Создайте файл .env в папке LLM
+# 2.2 Создайте файл .env в папке LLM
 ```bash
 OPENAI_API_KEY=ваш_ключ_deepseek_r1 или другой модели
 ```
-## 2.3 Создайте файл .env в папке APIgateway
+# 2.3 Создайте файл .env в папке APIgateway
 ```bash
 RAG_SERVICE_URL=http://localhost:8000
 LLM_SERVICE_URL=http://localhost:8001
 ```
-## 2.4 Создайте файл .env в папке telegram_bot
+# 2.4 Создайте файл .env в папке telegram_bot
 ```bash
 API_KEY=ваш_ключ_от_telegram_bot
 API_GATEWAY_URL=http://localhost:8002
