@@ -62,6 +62,7 @@ async def send_query(request:QueryRequest):
                     logger.error("RAG не вернул query_with_context")
                     raise HTTPException(status_code=500, detail="RAG вернул некорректный ответ")
             logger.info(f"Получен ответ от RAG: {query_with_context}")
+
             logger.info("Отправлен запрос к LLM")
             llm_response = await client.post(
                 f"{LLM_SERVICE_URL}/generate_answer",
@@ -70,12 +71,21 @@ async def send_query(request:QueryRequest):
                 timeout=60.0
             )
             llm_response.raise_for_status()
+            result = llm_response.json()
             response = llm_response.json().get("response")
+            requires_operator = result.get("requires_operator", False)
+            
             if not response:
                 logger.error("LLM не вернул response")
                 raise HTTPException(status_code=500, detail="LLM вернул некорректный ответ")
-            logger.info(f"Получен ответ от LLM: {response}")
-            return {"response": response}
+            
+            if requires_operator is False:  
+                no_answer = "не могу ответить"
+                if no_answer in response.lower():
+                    requires_operator = True
+                    logger.info(f"Ответ содержит фразу, указывающую на неполный ответ: {response}")
+                logger.info(f"Получен ответ от LLM: {response}")
+                return {"response": response}
     except ValueError as e:
         logger.error(f"Ошибка валидации запроса: {e}")
         raise HTTPException(status_code=400, detail=str(e))  

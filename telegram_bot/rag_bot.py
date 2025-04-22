@@ -6,7 +6,7 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import  TelegramNetworkError, TelegramRetryAfter
 import httpx
-from db_operations import authorize_user, init_db, add_user, add_chat, add_message
+from db_operations import authorize_user, init_db, add_user, add_chat, add_message, update_chat_status
 
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -77,11 +77,19 @@ async def rag_message(message: types.Message,**kwargs):
                 timeout=30.0
             )
             response.raise_for_status()
+            result = response.json()
             answer = response.json().get("response")
             logger.info(f"Ответ для {user_id}: {answer}")
 
-        await message.answer(answer)
+        requires_operator = result.get("requires_operator", False)
 
+        if not requires_operator:
+            await update_chat_status(pool, chat_id, 'OPERATOR_NEEDED')
+            logger.info(f"Чат {chat_id} помечен как OPERATOR_NEEDED")
+            await message.answer(answer + "\nВаш запрос передан оператору.")
+        else:
+            await message.answer(answer)
+ 
     
     except httpx.HTTPStatusError as e:
         logger.error(f"Ошибка HTTP статуса: {e.response.status_code} - {e.response.text}")
