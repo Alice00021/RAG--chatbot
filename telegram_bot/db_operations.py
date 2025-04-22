@@ -25,7 +25,27 @@ async def authorize_user( telegram_id: int, pool) -> tuple[bool, int]:
         if user:
             return True, user['user_id']
         return False, None
-    
+
+async def add_user(pool, telegram_id: int, username: str, first_name:str, last_name:str):
+    async with pool.acquire() as conn:
+        await conn.execute('''
+            INSERT INTO "User"(telegram_id, username, first_name, last_name) VALUES($1, $2, $3, $4 )
+        ''', telegram_id, username, first_name, last_name)  
+
+async def add_chat(pool, telegram_id:int):
+    async with pool.acquire() as conn:
+        chat = await conn.fetchrow('SELECT chat_id FROM "Chat" WHERE user_id = $1', telegram_id)
+        if not chat:
+            await conn.execute('INSERT INTO "Chat" (user_id) VALUES ($1)', telegram_id)
+        chat = await conn.fetchrow('SELECT chat_id FROM "Chat" WHERE user_id = $1', telegram_id)
+        return chat['chat_id']
+
+async def add_message(pool, chat_id: int, sender_type: str, text: str, responder_id: int = None):
+    async with pool.acquire() as conn:
+        await conn.execute(
+            'INSERT INTO "Message" (chat_id, sender_type, responder_id, text) VALUES ($1, $2, $3, $4)',
+            chat_id, sender_type, responder_id, text
+        )
 async def main():
     pool = await init_db()
     await init_db(pool)

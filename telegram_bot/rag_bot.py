@@ -6,7 +6,7 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import  TelegramNetworkError, TelegramRetryAfter
 import httpx
-from db_operations import authorize_user, init_db
+from db_operations import authorize_user, init_db, add_user, add_chat, add_message
 
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -39,25 +39,35 @@ async def rag_message(message: types.Message,**kwargs):
     first_name =message.from_user.first_name
     last_name = message.from_user.last_name
     username = message.from_user.username
-    chat_id = message.chat.id
-    message_text = message.text
+
+    try:
+        await add_user(pool, telegram_id, username, first_name, last_name)
+        logger.info("Пользователь добавлен в бд")
+    except Exception as e:
+        logger.error(f"Ошибка: {e}. Пользователь не был добавлен в БД")
 
     is_authorized, user_id = await authorize_user(telegram_id, pool)
 
     if not is_authorized:
         await message.reply("Вы не авторизованы. Сначала зарегистрируйтесь в системе.")
         logger.info(f"Пользователя: {telegram_id} {username} {first_name} {last_name} нет в системе")
-        
         return
     else:
         logger.info(f"Пользователь: {user_id} есть в системе")
+
+    try:
+        chat_id = await add_chat(pool, telegram_id)
+        logger.info(f"Чат{chat_id} пользователя: {telegram_id}")
+    except Exception as e:
+        logger.error(f"Ошибка: {e}. Не найден чат и не был создан")
+
     user_query = message.text.strip()
     logger.info(f"Сообщение пользователя {user_query}")
-
-    #adduserintpdb()
-    #addmessageintodb() если с сообщением все корректно, добавляем в бд
-    #обработать , когда ответ требует ответа оператора и тогда status chata = OPERATOR_NEEDED
-    # и вызов оператора addmessageintodb()добавление сообщений с оператором
+    try:
+        await add_message(pool, chat_id, 'USER', user_query)
+        logger.info(f"Сообщение добавлено в таблицу")
+    except Exception as e:
+        logger.error(f"Ошибка: {e}. Сообщение не было добавлено")
 
     try:
         async with httpx.AsyncClient() as client:
@@ -68,12 +78,6 @@ async def rag_message(message: types.Message,**kwargs):
             )
             response.raise_for_status()
             answer = response.json().get("response")
-            
-            
-            #addchatintodb() если опертор не нужен
-            #addmessageintodb() если с сообщением - ответом от модели ивсе корректно
-            
-            
             logger.info(f"Ответ для {user_id}: {answer}")
 
         await message.answer(answer)
