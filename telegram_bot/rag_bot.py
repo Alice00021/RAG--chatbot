@@ -33,10 +33,10 @@ if not API_TOKEN:
 dp = Dispatcher()
 
 @dp.message()
-async def rag_message(message: types.Message,**kwargs):
+async def rag_message(message: types.Message, **kwargs):
     pool = kwargs.get("pool")
     telegram_id = message.from_user.id
-    first_name =message.from_user.first_name
+    first_name = message.from_user.first_name
     last_name = message.from_user.last_name
     username = message.from_user.username
 
@@ -56,10 +56,12 @@ async def rag_message(message: types.Message,**kwargs):
         logger.info(f"Пользователь: {user_id} есть в системе")
 
     try:
-        chat_id = await add_chat(pool, telegram_id)
-        logger.info(f"Чат{chat_id} пользователя: {telegram_id}")
+        chat_id = await add_chat(pool, user_id)  
+        logger.info(f"Чат {chat_id} пользователя: {user_id}")
     except Exception as e:
         logger.error(f"Ошибка: {e}. Не найден чат и не был создан")
+        await message.reply("Не удалось создать чат. Попробуйте позже.")
+        return
 
     user_query = message.text.strip()
     logger.info(f"Сообщение пользователя {user_query}")
@@ -68,8 +70,11 @@ async def rag_message(message: types.Message,**kwargs):
         logger.info(f"Сообщение добавлено в таблицу")
     except Exception as e:
         logger.error(f"Ошибка: {e}. Сообщение не было добавлено")
+        await message.reply("Не удалось сохранить сообщение. Попробуйте позже.")
+        return
 
     try:
+        logger.info(f"Отправка запроса к {API_GATEWAY_URL}/query с данными: {user_query}")
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{API_GATEWAY_URL}/query",
@@ -78,19 +83,19 @@ async def rag_message(message: types.Message,**kwargs):
             )
             response.raise_for_status()
             result = response.json()
-            answer = response.json().get("response")
+            answer = result.get("response")
             logger.info(f"Ответ для {user_id}: {answer}")
 
         requires_operator = result.get("requires_operator", False)
+        logger.info(f"requires_operator: {requires_operator}")
 
-        if not requires_operator:
+        if requires_operator:
             await update_chat_status(pool, chat_id, 'OPERATOR_NEEDED')
             logger.info(f"Чат {chat_id} помечен как OPERATOR_NEEDED")
-            await message.answer(answer + "\nВаш запрос передан оператору.")
+            await message.answer("Ваш запрос передан оператору.")
         else:
             await message.answer(answer)
- 
-    
+
     except httpx.HTTPStatusError as e:
         logger.error(f"Ошибка HTTP статуса: {e.response.status_code} - {e.response.text}")
         await message.answer("Ошибка при обработке запроса. Попробуйте еще раз.")
@@ -106,7 +111,7 @@ async def rag_message(message: types.Message,**kwargs):
     except Exception as e:
         logger.error(f"Неизвестная ошибка: {e}")
         await message.answer("Что-то пошло не так. Попробуйте еще раз.")
-
+        
 async def main() -> None:
     bot = Bot(token=API_TOKEN)
     pool = await init_db()

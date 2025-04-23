@@ -54,8 +54,5 @@ async def update_chat_status(pool, chat_id: int, status:str):
             chat_id, status
         )
         
-async def main():
-    pool = await init_db()
-    await init_db(pool)
     
 
