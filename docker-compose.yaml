@@ -1,4 +1,25 @@
 services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data/pgdata
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - microservices-network
   rag:
     build:
       context: ./RAG
@@ -66,11 +87,12 @@ services:
     build:
       context: ./telegram_bot
       dockerfile: Dockerfile
-    environment:
-      - API_KEY=${API_KEY}
-      - API_GATEWAY_URL=http://api-gateway:8002
+    env_file:
+    - ./telegram_bot/.env
     depends_on:
       api-gateway:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - microservices-network
@@ -83,6 +105,8 @@ services:
 
 volumes:
   rag-data:
+  pgdata:
+    driver: local
 
 networks:
   microservices-network:
