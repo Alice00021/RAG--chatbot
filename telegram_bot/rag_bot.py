@@ -7,6 +7,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import  TelegramNetworkError, TelegramRetryAfter
 import httpx
 from db_operations import authorize_user, init_db, add_user, add_chat, add_message, update_chat_status
+from producer import send_to_queue
+from consumer import consume_messages
 
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -40,20 +42,20 @@ async def rag_message(message: types.Message, **kwargs):
     last_name = message.from_user.last_name
     username = message.from_user.username
 
-    try:
-        await add_user(pool, telegram_id, username, first_name, last_name)
-        logger.info("Пользователь добавлен в бд")
-    except Exception as e:
-        logger.error(f"Ошибка: {e}. Пользователь не был добавлен в БД")
-
     is_authorized, user_id = await authorize_user(telegram_id, pool)
 
-    if not is_authorized:
+    if is_authorized:
+        logger.info(f"Пользователь: {user_id} есть в системе")
+        
+    else:
         await message.reply("Вы не авторизованы. Сначала зарегистрируйтесь в системе.")
         logger.info(f"Пользователя: {telegram_id} {username} {first_name} {last_name} нет в системе")
-        return
-    else:
-        logger.info(f"Пользователь: {user_id} есть в системе")
+        try:
+            await add_user(pool, telegram_id, username, first_name, last_name)
+            logger.info("Пользователь добавлен в бд")
+        except Exception as e:
+            logger.error(f"Ошибка: {e}. Пользователь не был добавлен в БД")
+ 
 
     try:
         chat_id = await add_chat(pool, user_id)  
@@ -73,48 +75,17 @@ async def rag_message(message: types.Message, **kwargs):
         await message.reply("Не удалось сохранить сообщение. Попробуйте позже.")
         return
 
-    try:
-        logger.info(f"Отправка запроса к {API_GATEWAY_URL}/query с данными: {user_query}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{API_GATEWAY_URL}/query",
-                json={"query": user_query},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            answer = result.get("response")
-            logger.info(f"Ответ для {user_id}: {answer}")
-
-        requires_operator = result.get("requires_operator", False)
-        logger.info(f"requires_operator: {requires_operator}")
-
-        if requires_operator:
-            await update_chat_status(pool, chat_id, 'OPERATOR_NEEDED')
-            logger.info(f"Чат {chat_id} помечен как OPERATOR_NEEDED")
-            await message.answer("Ваш запрос передан оператору.")
-        else:
-            await message.answer(answer)
-
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Ошибка HTTP статуса: {e.response.status_code} - {e.response.text}")
-        await message.answer("Ошибка при обработке запроса. Попробуйте еще раз.")
-    except httpx.RequestError as e:
-        logger.error(f"Ошибка запроса: {e}")
-        await message.answer("Ошибка подключения. Попробуйте еще раз.")
-    except TelegramNetworkError as e:
-        logger.error(f"Ошибка сети Telegram: {e}")
-        await message.answer("Ошибка сети Telegram. Попробуйте еще раз.")
-    except TelegramRetryAfter as e:
-        logger.error(f"Ошибка Telegram RetryAfter: {e}")
-        await message.answer("Слишком много запросов. Попробуйте позже.")
-    except Exception as e:
-        logger.error(f"Неизвестная ошибка: {e}")
-        await message.answer("Что-то пошло не так. Попробуйте еще раз.")
-        
+    message_data = {
+        'message': message.model_dump_json(),
+        'user_query': user_query,
+        'chat_id': message.chat.id 
+    }
+    await send_to_queue(message_data)
+    
 async def main() -> None:
     bot = Bot(token=API_TOKEN)
     pool = await init_db()
+    consumer_task = asyncio.create_task(consume_messages(pool, bot))
     try:
         logger.info("Запуск бота")
         await dp.start_polling(bot, pool=pool)
@@ -122,6 +93,7 @@ async def main() -> None:
         logger.error(f"Ошибка polling: {e}")
     finally:
         logger.info("Остановка бота")
+        consumer_task.cancel()
         await bot.session.close()
          
 if __name__ == '__main__':
