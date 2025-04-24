@@ -85,7 +85,7 @@ async def send_query(request:QueryRequest):
                     requires_operator = True
                     logger.info(f"Ответ содержит фразу, указывающую на неполный ответ: {response}")
                 logger.info(f"Получен ответ от LLM: {response}")
-                return {"response": response}
+                return {"response": response, "requires_operator": requires_operator}
     except ValueError as e:
         logger.error(f"Ошибка валидации запроса: {e}")
         raise HTTPException(status_code=400, detail=str(e))  
