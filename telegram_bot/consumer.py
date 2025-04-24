@@ -6,7 +6,7 @@ import logging
 import json
 from db_operations import update_chat_status, init_db
 import asyncio
-from aiogram import types, Bot
+from aiogram import Bot
 
 load_dotenv()
 
@@ -20,7 +20,8 @@ async def process_message(message_data, bot: Bot, **kwargs):
     pool = kwargs.get("pool")
     user_query = message_data['user_query']
     chat_id = message_data['chat_id']
-    logger.info(f"chat_id: {chat_id}")
+    chat_id_in_telegram = message_data['chat_id_in_telegram']
+    logger.info(f"chat_id_in_telegram: {chat_id_in_telegram}")
 
     try:
         logger.info(f"Отправка запроса к {API_GATEWAY_URL}/query с данными: {user_query}")
@@ -40,19 +41,19 @@ async def process_message(message_data, bot: Bot, **kwargs):
         if requires_operator:
             await update_chat_status(pool, chat_id, 'OPERATOR_NEEDED')
             logger.info(f"Чат {chat_id} помечен как OPERATOR_NEEDED")
-            await bot.send_message(chat_id, "Ваш запрос передан оператору.")
+            await bot.send_message(chat_id_in_telegram, "Ваш запрос передан оператору.")
         else:
-            await bot.send_message(chat_id, answer)
+            await bot.send_message(chat_id_in_telegram, answer)
 
     except aiohttp.ClientResponseError as e:
         logger.error(f"Ошибка HTTP статуса: {e.status} - {e.message}")
-        await bot.send_message(chat_id,"Ошибка при обработке запроса. Попробуйте еще раз.")
+        await bot.send_message(chat_id_in_telegram,"Ошибка при обработке запроса. Попробуйте еще раз.")
     except aiohttp.ClientError as e:
         logger.error(f"Ошибка запроса: {e}")
-        await bot.send_message(chat_id,"Ошибка подключения. Попробуйте еще раз.")
+        await bot.send_message(chat_id_in_telegram,"Ошибка подключения. Попробуйте еще раз.")
     except Exception as e:
         logger.error(f"Неизвестная ошибка: {e}")
-        await bot.send_message(chat_id,"Что-то пошло не так. Попробуйте еще раз.")
+        await bot.send_message(chat_id_in_telegram,"Что-то пошло не так. Попробуйте еще раз.")
 
 async def consume_messages(pool, bot:Bot):
     connection = await aio_pika.connect_robust(RABBITMQ_URL)

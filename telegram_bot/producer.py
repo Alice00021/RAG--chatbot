@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import os
 import logging
 import json
-import asyncio
 
 load_dotenv()
 
@@ -24,12 +23,11 @@ async def send_to_queue(message):
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
 
-
-if __name__ == '__main__':
+""" if __name__ == '__main__':
     # Пример использования
     example_message = {
         'message': 'Example message',
         'user_query': 'Example query',
         'chat_id': 12345
     }
-    asyncio.run(send_to_queue(example_message))    
+    asyncio.run(send_to_queue(example_message))    """ 
