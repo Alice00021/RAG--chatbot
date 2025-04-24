@@ -20,6 +20,22 @@ services:
     restart: unless-stopped
     networks:
       - microservices-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_container
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   rag:
     build:
       context: ./RAG
@@ -94,6 +110,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - microservices-network
     healthcheck:
@@ -106,6 +124,8 @@ services:
 volumes:
   rag-data:
   pgdata:
+    driver: local
+  rabbitmq-data:
     driver: local
 
 networks:
