@@ -38,7 +38,8 @@ LLM_SERVICE_URL=http://localhost:8001
 # 2.4 Создайте файл .env в папке telegram_bot
 ```bash
 API_KEY=ваш_ключ_от_telegram_bot
-API_GATEWAY_URL=http://localhost:8002
+API_GATEWAY_URL=http://api-gateway:8002
+RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
 ```
 ### 3. Запуск через docker-compose
 ```bash
@@ -53,6 +54,37 @@ docker-compose start
 ```bash
 sudo chcon -Rt svirt_sandbox_file_t ./RAG/knowledge_base
 ```
+Может возникунуть проблема с файлом init.sql
+1. **Проверьте SELinux-контекст**:
+```bash
+    ls -Z ./postgres/init.sql
+```
+2.  Если тип SELinux — user_home_t или что-то подобное, это может быть проблемой.
+- **Измените SELinux-контекст**: Чтобы Docker мог получить доступ к файлу, нужно установить SELinux-контекст, подходящий для контейнеров:
+```bash
+chcon -t container_file_t ./postgres/init.sql
+```
+3. **Проверьте контекст снова**:
+```bash
+ls -Z ./postgres/init.sql
+```
+Теперь тип должен быть container_file_t, например:
+```bash
+rw-r--r--. user user unconfined_u:object_r:container_file_t:s0 1367 апр 23 08:31 ./postgres/init.sql
+```
+4. **Перезапустите контейнеры**: Очистите том pgdata, чтобы PostgreSQL заново инициализировал базу данных и выполнил init.sql:
+
+```bash
+docker-compose down
+docker volume rm rag-chatbot_pgdata
+docker-compose up -d
+```
+Так же возможна ошибка с правами:
+```bash
+chmod 644 init_db.sql
+```
+
+
 
 
 
